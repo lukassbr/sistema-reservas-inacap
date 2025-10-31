@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.http import JsonResponse
 from .models import Reserva
 from .serializers import ReservaSerializer, ReservaCreateSerializer
 
@@ -89,3 +90,6 @@ class ReservaViewSet(viewsets.ModelViewSet):
         reservas = self.queryset.filter(estado='pendiente')
         serializer = self.get_serializer(reservas, many=True)
         return Response(serializer.data)
+    
+def index(request):
+    return JsonResponse({"message": "API de reservas funcionando correctamente"})

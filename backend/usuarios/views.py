@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import JsonResponse
 from .models import Usuario, Rol
 from .serializers import UsuarioSerializer, UsuarioCreateSerializer, RolSerializer
 
@@ -23,3 +24,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         """Obtener información del usuario actual"""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+    
+def index(request):
+    return JsonResponse({"message": "API de Usuarios está funcionando correctamente."})
