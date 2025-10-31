@@ -37,7 +37,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API endpoints
-    path('api/', include(router.urls)),
+    path('api/', include('usuarios.urls')),
+    path('api/', include('espacios.urls')),
+    path('api/', include('elementos.urls')),
+    path('api/', include('reservas.urls')),
     
     # Autenticación JWT
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
