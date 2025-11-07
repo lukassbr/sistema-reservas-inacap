@@ -31,9 +31,9 @@ function Login() {
           <div className="card shadow">
             <div className="card-body p-5">
               <div className="text-center mb-4">
-                <i className="bi bi-building" style={{ fontSize: '3rem', color: '#3F51B5' }}></i>
+                <h1 style={{ color: '#E30613', fontWeight: 'bold'}}>INACAP</h1>
                 <h2 className="mt-3">Sistema de Reservas</h2>
-                <p className="text-muted">INACAP - Subdirección Vespertina</p>
+                <p className="text-muted">Subdirección Vespertina</p>
               </div>
 
               {error && (
@@ -72,7 +72,7 @@ function Login() {
 
                 <button
                   type="submit"
-                  className="btn btn-primary w-100"
+                  className="btn btn-danger w-100"
                   disabled={loading}
                 >
                   {loading ? (
