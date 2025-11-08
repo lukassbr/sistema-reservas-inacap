@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import ResetPassword from './ResetPassword';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -92,7 +93,7 @@ function Login() {
               <div className="text-center mt-3">
                 <small className="text-muted">
                   ¿Olvidaste tu contraseña? 
-                  <a href="#" className="ms-1">Recuperar</a>
+                  <a href="/reset-password" className="ms-1">Recuperar</a>
                 </small>
               </div>
             </div>

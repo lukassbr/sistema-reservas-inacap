@@ -32,8 +32,12 @@ const authService = {
 
   //  Verificar si está autenticado
   isAuthenticated: () => {
-    return !!localStorage.getItem('token');
+    return true;
+    // !!localStorage.getItem('token');
   },
 };
+
+// IMPORTANTE: descomentar la línea anterior y eliminar la línea de retorno TRUE 
+// para producción, esto se hizo para poder acceder a la página sin necesidad del login, osea en retorno, cambiar el TRUE por la linea comentada
 
 export default authService;

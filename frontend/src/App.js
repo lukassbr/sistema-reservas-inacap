@@ -13,6 +13,11 @@ import AprobacionPanel from './components/AprobacionPanel';
 import GestionEspacios from './components/Administración/GestionEspacios'; 
 import MisReservas from './components/Reservas/MisReservas'; 
 import CalendarioReservas from './components/Reservas/CalendarioReservas'; 
+import GestionElementos from './components/Administración/GestionElementos';
+import ResetPassword from './components/auth/ResetPassword';
+
+import DashboardAdmin from './components/dashboard/DashboardAdmin';
+
 
 
 // 1. Componente temporal para el Dashboard
@@ -54,9 +59,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         {/* Rutas Protegidas (Acceso con el Header) */}
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><GestionElementos /></PrivateRoute>} />
 
-        {/* ⭐ CORRECCIÓN: /reservar solo carga el calendario, el formulario se carga dentro de él. */}
+        {/*/reservar solo carga el calendario, el formulario se carga dentro de él. */}
         <Route path="/reservar" element={<PrivateRoute><CalendarioReservas /></PrivateRoute>} />
         
         {/* Mis Reservas */}
@@ -65,6 +70,12 @@ function App() {
         {/* Vistas de Coordinador / Admin */}
         <Route path="/aprobacion" element={<PrivateRoute><AprobacionPanel /></PrivateRoute>} />
         <Route path="/gestion/espacios" element={<PrivateRoute><GestionEspacios /></PrivateRoute>} />
+
+        {/* Reset Password (Público) */}
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/*Gestión de Elementos */}
+        <Route path='/gestion/elementos' element={<PrivateRoute><GestionElementos /></PrivateRoute>} />
         
         {/* Ruta Raíz: Envía al Dashboard si hay sesión activa (MOCKED) */}
         <Route 
