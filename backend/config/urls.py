@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import home
 
 # Importar ViewSets
 from usuarios.views import UsuarioViewSet, RolViewSet
@@ -34,6 +35,9 @@ router.register(r'elementos', ElementoViewSet)
 router.register(r'reservas', ReservaViewSet)
 
 urlpatterns = [
+
+    path('', home, name='home'),
+
     path('admin/', admin.site.urls),
     
     # API endpoints

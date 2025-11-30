@@ -15,11 +15,29 @@ from elementos.models import Elemento
 from reservas.models import Reserva, ReservaElemento
 from datetime import date, time, timedelta
 
+def crear_roles():
+    """Crea los roles base del sistema si no existen"""
+    print("Creando/Verificando roles...")
+    roles_data = [
+        ('admin', 'Administrador'),
+        ('coordinador', 'Coordinador'),
+        ('solicitante', 'Solicitante'),
+        ('mantenimiento', 'Personal de Mantenimiento'),
+    ]
+    
+    for nombre, desc in roles_data:
+        rol, created = Rol.objects.get_or_create(
+            nombre_rol=nombre,
+            defaults={'descripcion': desc}
+        )
+        estado = "Creado" if created else "Ya existía"
+        print(f"- Rol {nombre}: {estado}")
+
 def crear_usuarios_prueba():
     """Crear usuarios de prueba para cada rol"""
-    print("Creando usuarios de prueba...")
+    print("\nCreando usuarios de prueba...")
     
-    # Obtener roles
+    # Obtener roles (ahora seguro existen)
     rol_admin = Rol.objects.get(nombre_rol='admin')
     rol_coord = Rol.objects.get(nombre_rol='coordinador')
     rol_solic = Rol.objects.get(nombre_rol='solicitante')
@@ -55,6 +73,14 @@ def crear_usuarios_prueba():
             'rol': rol_mant,
             'telefono': '+56945678901'
         },
+        # Agregamos un admin explícito también
+        {
+            'email': 'admin@inacap.cl',
+            'nombre': 'Super',
+            'apellido': 'Admin',
+            'rol': rol_admin,
+            'telefono': '+56900000000'
+        }
     ]
     
     for user_data in usuarios:
@@ -280,6 +306,7 @@ def main():
     print("CREANDO DATOS DE PRUEBA PARA EL SISTEMA")
     print("=" * 60)
     
+    crear_roles()          # <--- NUEVO: Crea los roles primero
     crear_usuarios_prueba()
     crear_espacios_prueba()
     crear_elementos_prueba()
@@ -291,7 +318,7 @@ def main():
     print("\nUSUARIOS CREADOS (todos con password: Inacap2025!):")
     print("- coordinador@inacap.cl (Coordinador)")
     print("- docente1@inacap.cl (Solicitante)")
-    print("- docente2@inacap.cl (Solicitante)")
+    print("- admin@inacap.cl (Admin)")
     print("- mantenimiento@inacap.cl (Mantenimiento)")
     print("\nPuedes iniciar sesión con cualquiera de estos usuarios.")
 

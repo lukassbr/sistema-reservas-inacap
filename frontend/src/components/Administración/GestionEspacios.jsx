@@ -42,7 +42,7 @@ const GestionEspacios = () => {
             {/* ENCABEZADO Y ACCIÓN PRINCIPAL */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h1 className="text-danger">
-                    <i className="bi bi-geo-alt-fill me-2"></i> Mantenedor de Espacios (Sede Temuco)
+                    <i className="bi bi-geo-alt-fill me-2"></i> Mantenedor de Espacios
                 </h1>
                 
                 {/* Botón de Nuevo Espacio (Destacado) */}

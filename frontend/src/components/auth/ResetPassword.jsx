@@ -164,9 +164,9 @@ const ResetPassword = () => {
 
     return (
         <div className="container vh-100 d-flex align-items-center justify-content-center">
-            <div className="row 2-100">
+            <div className="row 2-100 w-100">
                 <div className="col-md-6 offset-md-3">
-                    <div className="card shadow border-danger border-3">
+                    <div className="card shadow border-danger border-4">
                         <div className="card-body p-5">
                             <div className="text-center mb-4">
                                 <h3 className="text-danger fw-bold">Restablecer Contraseña</h3>

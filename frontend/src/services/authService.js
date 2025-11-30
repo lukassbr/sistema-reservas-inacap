@@ -32,8 +32,8 @@ const authService = {
 
   //  Verificar si está autenticado
   isAuthenticated: () => {
-    return true;
-    // !!localStorage.getItem('token');
+    return true; 
+    //!!localStorage.getItem('token');
   },
 };
 

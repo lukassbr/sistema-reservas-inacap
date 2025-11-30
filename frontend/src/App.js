@@ -59,7 +59,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         {/* Rutas Protegidas (Acceso con el Header) */}
-        <Route path="/dashboard" element={<PrivateRoute><GestionElementos /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><DashboardAdmin/></PrivateRoute>} />
 
         {/*/reservar solo carga el calendario, el formulario se carga dentro de él. */}
         <Route path="/reservar" element={<PrivateRoute><CalendarioReservas /></PrivateRoute>} />
