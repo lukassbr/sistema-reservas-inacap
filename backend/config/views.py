@@ -69,7 +69,7 @@ def home(request):
 
             <div class="btn-container">
                 <a href="/admin/" class="btn btn-primary">Ingresar al Panel Administrativo</a>
-                <a href="http://localhost:3000" class="btn btn-outline" target="_blank">Abrir Aplicación Web (Frontend)</a>
+                <a href="http://localhost:3000" class="btn btn-outline" target="_blank">Abrir Aplicación Web </a>
             </div>
 
             <div class="footer">

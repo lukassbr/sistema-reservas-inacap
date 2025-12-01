@@ -180,7 +180,7 @@ const ElementoModal = ({ elemento, onClose }) => {
                 <div className="modal-content">
                     <form onSubmit={handleSave}>
                         <div className="modal-header bg-danger text-white">
-                            <h5 className="modal-title"><i className="bi bi-tools me-2"></i> {isEditing ? `Editar: ${elementoData.nombre}` : 'Crear Nuevo Elemento'}</h5>
+                            <h5 className="modal-title"><i className="bi bi-tools me-2"></i> {isEditing ? `Editar: ${elemento.nombre}` : 'Crear Nuevo Elemento'}</h5>
                             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
                         </div>
                         <div className="modal-body">

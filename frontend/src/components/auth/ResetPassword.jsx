@@ -16,22 +16,27 @@ const ResetPassword = () => {
     const [loading, setLoading] = useState(false);
 
     // 4. MOCKUP: Simula el envio de correo
+    // dentro de ResetPassword.jsx, en handleSolicitud:
     const handleSolicitud = async (e) => {
-        e.preventDefault();
-        setError("");
-        if (!email.includes ("@inacapmail.cl") || !email.length < 5) {
-            setError("Por favor, ingresa un correo válido de Inacap.");
-            return;
-        }
-        setLoading (true);
-        // aquí iría la llamada a la API de Django
+    e.preventDefault();
+    setError('');
 
-        setTimeout(() => {
-            setLoading(false);
-            setFase("codigo");
-            alert("Correo de restablecimiento enviado. Revisa tu bandeja de entrada.");
-        }, 2000);
+    // Arreglada la validación del correo
+    if (!email.includes('@inacapmail.cl') || email.length < 5) {
+        setError('Por favor, ingresa un correo válido de Inacap.');
+        return;
+    }
+
+    setLoading(true);
+    // aquí iría la llamada a la API de Django
+
+    setTimeout(() => {
+        setLoading(false);
+        setFase('codigo');
+        alert('Correo de restablecimiento enviado. Revisa tu bandeja de entrada.');
+    }, 2000);
     };
+
 
     // 5. MOCKUP: Simula el restablecimiento de contraseña con token
     const handleRestablecer = async (e) => {

@@ -1,91 +1,66 @@
-// src/App.js (Versión Corregida y Funcional)
-
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import authService from './services/authService';
 
-// Importar todos los componentes diseñados
+// Componentes
 import Login from './components/auth/Login';
 import Header from './components/services/Header'; 
-// NOTA: FormularioReserva no es una ruta, se carga dentro de CalendarioReservas
-import FormularioReserva from './components/FormularioReserva'; 
+import CalendarioReservas from './components/Reservas/CalendarioReservas'; 
+import MisReservas from './components/Reservas/MisReservas'; 
 import AprobacionPanel from './components/AprobacionPanel';
 import GestionEspacios from './components/Administración/GestionEspacios'; 
-import MisReservas from './components/Reservas/MisReservas'; 
-import CalendarioReservas from './components/Reservas/CalendarioReservas'; 
 import GestionElementos from './components/Administración/GestionElementos';
 import ResetPassword from './components/auth/ResetPassword';
-
 import DashboardAdmin from './components/dashboard/DashboardAdmin';
+// Si no tienes este archivo, crea uno simple o usa MisReservas temporalmente
+import DashboardSolicitante from './components/dashboard/DashboardSolicitante'; 
 
-
-
-// 1. Componente temporal para el Dashboard
-function Dashboard() {
-  return (
-    <div className="container mt-5">
-      <h1 className="text-danger">🎉 ¡Bienvenido al Dashboard!</h1>
-      <p className="lead text-muted">Usa la barra superior para navegar entre las vistas diseñadas.</p>
-    </div>
-  );
+// Controlador inteligente de Dashboard
+function DashboardController() {
+    const user = authService.getCurrentUser();
+    // Si es admin o coordinador -> Dashboard de Gestión
+    if (user?.rol_slug === 'admin' || user?.rol_slug === 'coordinador') {
+        return <DashboardAdmin />;
+    }
+    // Si es profe o alumno -> Dashboard de Solicitante
+    return <DashboardSolicitante />;
 }
 
-// 2. Componente Wrapper para Rutas Protegidas
 function PrivateRoute({ children }) {
-  // NOTA: Esta función está MOCKEADA en src/services/authService.js para siempre devolver TRUE
-  const isAuthenticated = authService.isAuthenticated(); 
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  // Si está autenticado, muestra el Header y el contenido de la ruta
+  if (!authService.isAuthenticated()) return <Navigate to="/login" />;
   return (
     <>
       <Header /> 
-      <div className="py-4"> 
-        {children}
-      </div>
+      <div className="py-4">{children}</div>
     </>
   );
 }
 
-// 3. Función Principal de la App
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas Públicas */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
-        {/* Rutas Protegidas (Acceso con el Header) */}
-        <Route path="/dashboard" element={<PrivateRoute><DashboardAdmin/></PrivateRoute>} />
+        {/* RUTA PRINCIPAL QUE DECIDE QUÉ MOSTRAR */}
+        <Route path="/dashboard" element={
+            <PrivateRoute>
+                <DashboardController />
+            </PrivateRoute>
+        } />
 
-        {/*/reservar solo carga el calendario, el formulario se carga dentro de él. */}
+        {/* Rutas Comunes */}
         <Route path="/reservar" element={<PrivateRoute><CalendarioReservas /></PrivateRoute>} />
-        
-        {/* Mis Reservas */}
         <Route path="/mis-reservas" element={<PrivateRoute><MisReservas /></PrivateRoute>} />
         
-        {/* Vistas de Coordinador / Admin */}
+        {/* Rutas de Admin */}
         <Route path="/aprobacion" element={<PrivateRoute><AprobacionPanel /></PrivateRoute>} />
         <Route path="/gestion/espacios" element={<PrivateRoute><GestionEspacios /></PrivateRoute>} />
-
-        {/* Reset Password (Público) */}
-        <Route path="/reset-password" element={<ResetPassword />} />
-
-        {/*Gestión de Elementos */}
-        <Route path='/gestion/elementos' element={<PrivateRoute><GestionElementos /></PrivateRoute>} />
+        <Route path="/gestion/elementos" element={<PrivateRoute><GestionElementos /></PrivateRoute>} />
         
-        {/* Ruta Raíz: Envía al Dashboard si hay sesión activa (MOCKED) */}
-        <Route 
-          path="/" 
-          element={
-            authService.isAuthenticated() ? 
-            <Navigate to="/dashboard" /> : 
-            <Navigate to="/login" />
-          } 
-        />
+        {/* Redirección por defecto */}
+        <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>
   );
