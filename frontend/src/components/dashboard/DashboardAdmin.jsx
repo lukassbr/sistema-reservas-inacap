@@ -1,118 +1,237 @@
-import React, {useState} from "react";
-// Importaciones reales de Recharts
-import {BarChart, Bar, LineChart,Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer} from 'recharts';
-
-const DATA_OCUPACION = [
-    { name: 'Auditorio', horas: 65, reservas: 12 },
-    { name: 'Laboratorio PC', horas: 80, reservas: 20 },
-    { name: 'Sala Ejecutiva', horas: 45, reservas: 8 },
-    { name: 'Sala de Creatividad', horas: 30, reservas: 5 },
-];
-
-const DATA_TENDENCIAS = [
-    { name: 'Sem 1', solicitudes: 15, aprobadas: 10 },
-    { name: 'Sem 2', solicitudes: 25, aprobadas: 18 },
-    { name: 'Sem 3', solicitudes: 30, aprobadas: 22 },
-    { name: 'Sem 4', solicitudes: 20, aprobadas: 15 },
-];
-
-// 1. Componente para las tarjetas KPI 
-const KpiCard = ({ title, value, unit, icon, color }) => (
-    <div className="card shadow border-0 h-100">
-        <div className="card-body">
-            <div className={`d-flex align-items-center p-3 rounded-3 text-white ${color} mb-3`}>
-                <i className={`bi ${icon} display-6 me-3`}></i>
-                <div>
-                    <h5 className="mb-0 text-white">{title}</h5>
-                </div>
-            </div>
-            <h2 className="mb-0 fw-bold text-dark">{value}</h2>
-            <p className="text-muted small">{unit}</p>
-        </div>
-    </div>
-);
+import React, { useState, useEffect } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import bootstrap5Plugin from '@fullcalendar/bootstrap5';
+import api from "../../services/api";
 
 const DashboardAdmin = () => {
-    const [periodo, setPeriodo] = useState('30d'); // Estado para el periodo seleccionado
+    // Estados para Estadísticas
+    const [stats, setStats] = useState({
+        totalReservas: 0,
+        tasaAprobacion: 0,
+        espacioMasUsado: "Cargando...",
+        ocupacionData: []
+    });
+    
+    // Estados para el Calendario de Gestión
+    const [espacios, setEspacios] = useState([]);
+    const [espacioSeleccionado, setEspacioSeleccionado] = useState(null);
+    const [verTodos, setVerTodos] = useState(false); // <--- NUEVO: Estado para ver todo
+    const [eventos, setEventos] = useState([]);
+
+    useEffect(() => {
+        cargarDatos();
+    }, []);
+
+    const cargarDatos = async () => {
+        try {
+            const [resReservas, resEspacios] = await Promise.all([
+                api.get('/reservas/'),
+                api.get('/espacios/')
+            ]);
+
+            const reservas = resReservas.data;
+            const listaEspacios = resEspacios.data;
+
+            // --- 1. LÓGICA DE ESTADÍSTICAS (KPIs) ---
+            const total = reservas.length;
+            const aprobadas = reservas.filter(r => r.estado === 'aprobada').length;
+            const tasa = total > 0 ? Math.round((aprobadas / total) * 100) : 0;
+
+            const conteoPorEspacio = {};
+            reservas.forEach(r => {
+                const nombre = r.espacio_detalle?.nombre || "Desconocido";
+                conteoPorEspacio[nombre] = (conteoPorEspacio[nombre] || 0) + 1;
+            });
+
+            const dataGrafico = Object.keys(conteoPorEspacio).map(key => ({
+                name: key,
+                reservas: conteoPorEspacio[key]
+            }));
+
+            let masUsado = "N/A";
+            let maxCount = 0;
+            Object.entries(conteoPorEspacio).forEach(([nombre, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    masUsado = nombre;
+                }
+            });
+
+            setStats({
+                totalReservas: total,
+                tasaAprobacion: tasa,
+                espacioMasUsado: masUsado,
+                ocupacionData: dataGrafico
+            });
+
+            // --- 2. LÓGICA DEL CALENDARIO ---
+            setEspacios(listaEspacios);
+            
+            // Por defecto seleccionamos el primero si existe
+            if (listaEspacios.length > 0) {
+                setEspacioSeleccionado(listaEspacios[0]);
+            }
+
+            // Mapear reservas para el calendario
+            const eventosMapeados = reservas.map(r => ({
+                id: r.id,
+                // Mostramos nombre del espacio + motivo para tener contexto en la vista global
+                title: `${r.espacio_detalle?.nombre || 'Sala'} - ${r.motivo}`,
+                start: `${r.fecha_reserva}T${r.hora_inicio}`,
+                end: `${r.fecha_reserva}T${r.hora_fin}`,
+                color: r.estado === 'aprobada' ? '#198754' : (r.estado === 'rechazada' ? '#dc3545' : '#ffc107'),
+                textColor: r.estado === 'aprobada' || r.estado === 'rechazada' ? '#ffffff' : '#000000',
+                extendedProps: { 
+                    espacioId: r.espacio, 
+                    estado: r.estado 
+                }
+            }));
+            setEventos(eventosMapeados);
+
+        } catch (error) {
+            console.error("Error cargando dashboard", error);
+        }
+    };
+
+    // FILTRO VISUAL: Muestra todo si verTodos es true, o filtra por ID
+    const eventosVisibles = verTodos 
+        ? eventos 
+        : (espacioSeleccionado ? eventos.filter(ev => Number(ev.extendedProps.espacioId) === Number(espacioSeleccionado.id)) : []);
+
+    // Manejador del Selector
+    const handleEspacioChange = (e) => {
+        const val = e.target.value;
+        if (val === 'todos') {
+            setVerTodos(true);
+            setEspacioSeleccionado(null);
+        } else {
+            setVerTodos(false);
+            const id = Number(val);
+            const espacio = espacios.find(s => s.id === id);
+            if (espacio) setEspacioSeleccionado(espacio);
+        }
+    };
 
     return (
         <div className="container-fluid mt-4">
-            <h1 className="text-danger mb-2"><i className="bi bi-speedometer2 me-2"></i> Dashboard de Gestión </h1>
-            <p className="lead text-muted">Indicadores clave y estadísticas de uso de espacios.</p>
-
-            {/* FILTROS DE PERÍODO  */}
-            <div className="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded shadow-sm">
-                <div className="btn-group" role="group">
-                    <button className={`btn ${periodo === '7d' ? 'btn-danger' : 'btn-outline-danger'}`} onClick={() => setPeriodo('7d')}>Últimos 7 Días</button>
-                    <button className={`btn ${periodo === '30d' ? 'btn-danger' : 'btn-outline-danger'}`} onClick={() => setPeriodo('30d')}>Últimos 30 Días</button>
-                    <button className={`btn ${periodo === 'custom' ? 'btn-danger' : 'btn-outline-danger'}`} onClick={() => setPeriodo('custom')}>Personalizado</button>
-                </div>
-                {periodo === 'custom' && (
-                    <div className="d-flex align-items-center">
-                        <input type="date" className="form-control me-2" />
-                        a
-                        <input type="date" className="form-control ms-2" />
-                        <button className="btn btn-primary ms-2">Aplicar</button>
-                    </div>
-                )}
-            </div>
+            <h1 className="text-danger mb-4"><i className="bi bi-speedometer2 me-2"></i> Dashboard de Gestión</h1>
 
             {/* TARJETAS KPI */}
             <div className="row g-4 mb-5">
-                <div className="col-md-3">
-                    <KpiCard title="Ocupación Promedio" value="78%" unit="Tasa de uso de espacios activos" icon="bi-graph-up" color="bg-success" />
-                </div>
-                <div className="col-md-3">
-                    <KpiCard title="Reservas Totales" value="155" unit="Solicitudes en el período" icon="bi-calendar-check" color="bg-danger" />
-                </div>
-                <div className="col-md-3">
-                    <KpiCard title="Tasa de Aprobación" value="95%" unit="Reservas aceptadas / totales" icon="bi-check-circle-fill" color="bg-info" />
-                </div>
-                <div className="col-md-3">
-                    <KpiCard title="Espacio Más Usado" value="Laboratorio B-102" unit="Con 88 horas de uso" icon="bi-building" color="bg-warning text-dark" />
-                </div>
-            </div>
-
-            {/* GRÁFICOS */}
-            <div className="row g-4">
-                <div className="col-lg-6">
-                    <div className="card shadow-lg border-0 h-100">
-                        <div className="card-header bg-white fw-bold">Ocupación por Espacio (Horas)</div>
-                        <div className="card-body" style={{ height: 400 }}>
-                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={DATA_OCUPACION} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis label={{ value: 'Horas', angle: -90, position: 'insideLeft' }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="horas" fill="#dc3545" name="Horas Reservadas" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                <div className="col-md-4">
+                    <div className="card shadow border-0 h-100 border-start border-4 border-danger">
+                        <div className="card-body">
+                            <h5 className="text-muted">Total Solicitudes</h5>
+                            <h2 className="display-4 fw-bold text-dark">{stats.totalReservas}</h2>
                         </div>
                     </div>
                 </div>
-
-                <div className="col-lg-6">
-                    <div className="card shadow-lg border-0 h-100">
-                        <div className="card-header bg-white fw-bold">Tendencia de Solicitudes y Aprobaciones</div>
-                        <div className="card-body" style={{ height: 400 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={DATA_TENDENCIAS} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis label={{ value: 'Cantidad', angle: -90, position: 'insideLeft' }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Line type="monotone" dataKey="solicitudes" stroke="#0d6efd" name="Solicitadas" />
-                                    <Line type="monotone" dataKey="aprobadas" stroke="#28a745" name="Aprobadas" />
-                                </LineChart>
-                            </ResponsiveContainer>
+                <div className="col-md-4">
+                    <div className="card shadow border-0 h-100 border-start border-4 border-success">
+                        <div className="card-body">
+                            <h5 className="text-muted">Tasa de Aprobación</h5>
+                            <h2 className="display-4 fw-bold text-dark">{stats.tasaAprobacion}%</h2>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-md-4">
+                    <div className="card shadow border-0 h-100 border-start border-4 border-warning">
+                        <div className="card-body">
+                            <h5 className="text-muted">Espacio Más Solicitado</h5>
+                            <h3 className="fw-bold text-dark mt-2">{stats.espacioMasUsado}</h3>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
+            {/* GRÁFICO DE OCUPACIÓN */}
+            <div className="card shadow-lg border-0 mb-5">
+                <div className="card-header bg-white fw-bold">Estadísticas de Ocupación</div>
+                <div className="card-body" style={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.ocupacionData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="reservas" fill="#dc3545" name="Cantidad de Reservas" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* CALENDARIO GENERAL CON FILTRO "VER TODOS" */}
+            <div className="row">
+                <div className="col-12">
+                    <h3 className="text-secondary mb-3">
+                        <i className="bi bi-calendar3 me-2"></i> 
+                        {verTodos ? 'Calendario Global (Todos los Espacios)' : `Calendario: ${espacioSeleccionado?.nombre || 'Cargando...'}`}
+                    </h3>
+                </div>
+                
+                {/* Selector de Espacio */}
+                <div className="col-md-3">
+                    <div className="card shadow p-3 border-0 bg-light mb-3">
+                        <label className="form-label fw-bold text-danger">Filtrar Calendario:</label>
+                        <select 
+                            className="form-select"
+                            value={verTodos ? 'todos' : (espacioSeleccionado?.id || '')}
+                            onChange={handleEspacioChange}
+                        >
+                            <option value="todos" className="fw-bold">Todos los Espacios</option>
+                            <option disabled>-------------------</option>
+                            {espacios.map(e => (
+                                <option key={e.id} value={e.id}>{e.nombre}</option>
+                            ))}
+                        </select>
+                        
+                        <div className="mt-4 small text-muted">
+                            <h6 className="fw-bold">Referencias:</h6>
+                            <div className="d-flex align-items-center mb-1">
+                                <div style={{width: 12, height: 12, backgroundColor: '#198754', borderRadius: '50%', marginRight: 8}}></div>
+                                Aprobada
+                            </div>
+                            <div className="d-flex align-items-center mb-1">
+                                <div style={{width: 12, height: 12, backgroundColor: '#ffc107', borderRadius: '50%', marginRight: 8}}></div>
+                                Pendiente
+                            </div>
+                            <div className="d-flex align-items-center">
+                                <div style={{width: 12, height: 12, backgroundColor: '#dc3545', borderRadius: '50%', marginRight: 8}}></div>
+                                Rechazada
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Componente Calendario */}
+                <div className="col-md-9">
+                    <div className="card shadow border-0">
+                        <div className="card-body p-2">
+                            <FullCalendar
+                                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, bootstrap5Plugin]}
+                                themeSystem='bootstrap5'
+                                initialView='timeGridWeek'
+                                headerToolbar={{
+                                    left: 'prev,next today',
+                                    center: 'title',
+                                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                                }}
+                                events={eventosVisibles}
+                                locale='es'
+                                slotMinTime="08:00:00"
+                                slotMaxTime="22:00:00"
+                                allDaySlot={false}
+                                height="auto"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

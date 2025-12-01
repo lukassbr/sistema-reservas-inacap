@@ -1,161 +1,133 @@
-import React, { useState } from 'react';
-
-// MOCKUP: Simula las reservas del usuario logueado
-const MOCK_RESERVAS = [
-    { id: 301, espacio: 'Laboratorio C-201', fecha: '2025-11-18', hora: '10:00 - 12:00', estado: 'Aprobada', motivo: 'Clase Taller de Proyecto', sede: 'Santiago' },
-    { id: 302, espacio: 'Sala de Estudio 405', fecha: '2025-11-19', hora: '16:00 - 18:00', estado: 'Pendiente', motivo: 'Reunión grupal', sede: 'Santiago' },
-    { id: 303, espacio: 'Patio Cubo', fecha: '2025-11-05', hora: '17:00 - 20:00', estado: 'Finalizada', motivo: 'Evento de Ciberseguridad', sede: 'Temuco' },
-    { id: 304, espacio: 'Auditorio Principal', fecha: '2025-12-01', hora: '09:00 - 14:00', estado: 'Rechazada', motivo: 'Charla con invitado', sede: 'Temuco' },
-    { id: 305, espacio: 'Sala A-301', fecha: '2025-12-10', hora: '15:00 - 16:30', estado: 'Cancelada', motivo: 'Evaluación Docente', sede: 'Santiago' },
-];
-
-// Helper para colores de estado con íconos
-const getEstadoInfo = (estado) => {
-    switch (estado) {
-        case 'Aprobada': return { badge: 'bg-success', icon: 'bi-check-circle-fill', text: 'Confirmada' };
-        case 'Pendiente': return { badge: 'bg-warning text-dark', icon: 'bi-clock-fill', text: 'En Revisión' };
-        case 'Rechazada': return { badge: 'bg-danger', icon: 'bi-x-circle-fill', text: 'Rechazada' };
-        case 'Finalizada': return { badge: 'bg-secondary', icon: 'bi-flag-fill', text: 'Finalizada' };
-        case 'Cancelada': return { badge: 'bg-info', icon: 'bi-slash-circle', text: 'Cancelada' };
-        default: return { badge: 'bg-light text-muted', icon: 'bi-question-circle', text: 'Desconocido' };
-    }
-};
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+import authService from '../../services/authService';
 
 const MisReservas = () => {
-    const [reservas, setReservas] = useState(MOCK_RESERVAS);
-    const [filtroEstado, setFiltroEstado] = useState('Activas');
+    const [reservas, setReservas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filtroEstado, setFiltroEstado] = useState('Todas');
+    
+    // Obtenemos el usuario para saber si es Admin
+    const user = authService.getCurrentUser();
+    const esAdmin = user?.rol_slug === 'admin' || user?.rol_slug === 'coordinador';
 
-    // MOCKUP: Manejar la cancelación (HU21)
-    const handleCancelar = (id, espacio) => {
-        if (window.confirm(`¿Está seguro de CANCELAR la reserva #${id} (${espacio})?`)) {
-            // Lógica API: Cambiar estado en el backend
-            setReservas(reservas.map(r => 
-                r.id === id ? { ...r, estado: 'Cancelada' } : r
-            ));
-            alert(`Reserva ${id} cancelada. Se notificará al coordinador.`);
+    useEffect(() => {
+        cargarReservas();
+    }, []);
+
+    const cargarReservas = async () => {
+        try {
+            // Si es admin, el backend ya devuelve TODAS las reservas. Si es solicitante, solo las suyas.
+            const response = await api.get('/reservas/');
+            setReservas(response.data);
+        } catch (error) {
+            console.error("Error cargando reservas", error);
+        } finally {
+            setLoading(false);
         }
     };
-    
-    // Lógica de filtrado 
-    const reservasFiltradas = reservas.filter(r => {
-        if (filtroEstado === 'Activas') {
-            return r.estado === 'Aprobada' || r.estado === 'Pendiente';
+
+    const cancelarReserva = async (id) => {
+        const mensaje = esAdmin 
+            ? "ADMINISTRADOR: ¿Estás seguro de forzar la cancelación de esta reserva? Se liberará el espacio."
+            : "¿Estás seguro de cancelar tu solicitud?";
+
+        if (!window.confirm(mensaje)) return;
+
+        try {
+            // Usamos DELETE para eliminarla completamente o podríamos cambiar estado a 'cancelada'
+            await api.delete(`/reservas/${id}/`); 
+            alert("Reserva eliminada/cancelada correctamente.");
+            cargarReservas();
+        } catch (error) {
+            alert("No se pudo cancelar la reserva.");
         }
-        if (filtroEstado === 'Historial') {
-            return r.estado === 'Finalizada' || r.estado === 'Rechazada' || r.estado === 'Cancelada';
-        }
-        return true; 
-    });
+    };
+
+    const reservasFiltradas = reservas.filter(r => 
+        filtroEstado === 'Todas' || r.estado === filtroEstado.toLowerCase()
+    );
+
+    if (loading) return <div className="p-5 text-center">Cargando reservas...</div>;
 
     return (
         <div className="container mt-5">
-            
-            {/* ENCABEZADO */}
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <h1 className="text-danger">
-                    <i className="bi bi-calendar-check-fill me-2"></i> Mis Solicitudes y Reservas
-                </h1>
-                <span className="lead text-muted">{reservasFiltradas.length} Reservas Mostradas</span>
+                <h2 className="text-danger">
+                    <i className="bi bi-clock-history me-2"></i>
+                    {esAdmin ? 'Gestión Total de Reservas (Vista Admin)' : 'Mis Solicitudes'}
+                </h2>
+                {esAdmin && <span className="badge bg-danger">Modo Administrador</span>}
             </div>
-            <p className="lead text-muted">Consulta el estado, detalles y gestiona la cancelación de tus reservas (HU22, HU21).</p>
 
-            {/* FILTROS DE ESTADO */}
-            <div className="card shadow mb-4 p-3 bg-light border-0">
-                <div className="d-flex justify-content-start align-items-center">
-                    <strong className="me-3 text-muted">Mostrar:</strong>
-                    
-                    <div className="btn-group" role="group">
-                        <input type="radio" className="btn-check" name="filtro" id="fActivas" 
-                            checked={filtroEstado === 'Activas'} onChange={() => setFiltroEstado('Activas')} />
-                        <label className="btn btn-outline-danger" htmlFor="fActivas">
-                             <i className="bi bi-list-columns-reverse me-1"></i> Activas
-                        </label>
-
-                        <input type="radio" className="btn-check" name="filtro" id="fHistorial" 
-                            checked={filtroEstado === 'Historial'} onChange={() => setFiltroEstado('Historial')} />
-                        <label className="btn btn-outline-danger" htmlFor="fHistorial">
-                            <i className="bi bi-archive-fill me-1"></i> Historial
-                        </label>
-                        
-                        <input type="radio" className="btn-check" name="filtro" id="fTodos" 
-                            checked={filtroEstado === 'Todos'} onChange={() => setFiltroEstado('Todos')} />
-                        <label className="btn btn-outline-danger" htmlFor="fTodos">
-                            <i className="bi bi-grid-fill me-1"></i> Ver Todos
-                        </label>
-                    </div>
+            <div className="card shadow-sm mb-4 p-3 border-0 bg-light">
+                <div className="d-flex gap-2">
+                    {['Todas', 'Pendiente', 'Aprobada', 'Rechazada'].map(estado => (
+                        <button 
+                            key={estado}
+                            className={`btn ${filtroEstado === estado ? 'btn-danger' : 'btn-outline-secondary'}`}
+                            onClick={() => setFiltroEstado(estado)}
+                        >
+                            {estado}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* TABLA DE RESERVAS (Diseño más informativo) */}
-            <div className="card shadow-lg border-0">
-                <div className="card-body p-0">
-                    <div className="table-responsive">
-                        <table className="table table-striped table-hover align-middle mb-0">
-                            <thead className="bg-light">
-                                <tr>
-                                    <th style={{width: '5%'}}>ID</th>
-                                    <th style={{width: '25%'}}>Espacio / Sede</th>
-                                    <th style={{width: '20%'}}>Fecha y Horario</th>
-                                    <th style={{width: '25%'}}>Motivo</th>
-                                    <th style={{width: '15%'}} className="text-center">Estado</th>
-                                    <th style={{width: '10%'}} className="text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reservasFiltradas.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" className="text-center text-muted py-3">
-                                            No se encontraron reservas en este estado.
+            <div className="card shadow border-0">
+                <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                        <thead className="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Solicitante</th> {/* Columna extra útil para Admin */}
+                                <th>Espacio</th>
+                                <th>Fecha y Hora</th>
+                                <th>Motivo</th>
+                                <th className="text-center">Estado</th>
+                                <th className="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reservasFiltradas.length === 0 ? (
+                                <tr><td colSpan="7" className="text-center py-4">No hay reservas en este estado.</td></tr>
+                            ) : (
+                                reservasFiltradas.map(res => (
+                                    <tr key={res.id}>
+                                        <td>#{res.id}</td>
+                                        <td>
+                                            <strong>{res.usuario_detalle?.nombre || 'Usuario'}</strong> <br/>
+                                            <small className="text-muted">{res.usuario_detalle?.email}</small>
+                                        </td>
+                                        <td className="fw-bold">{res.espacio_detalle?.nombre || "Espacio"}</td>
+                                        <td>
+                                            {res.fecha_reserva} <br/>
+                                            <small className="text-muted">{res.hora_inicio} - {res.hora_fin}</small>
+                                        </td>
+                                        <td>{res.motivo}</td>
+                                        <td className="text-center">
+                                            {res.estado === 'aprobada' && <span className="badge bg-success">Aprobada</span>}
+                                            {res.estado === 'pendiente' && <span className="badge bg-warning text-dark">Pendiente</span>}
+                                            {res.estado === 'rechazada' && <span className="badge bg-danger">Rechazada</span>}
+                                        </td>
+                                        <td className="text-center">
+                                            {/* LOGICA DE BOTÓN CANCELAR */}
+                                            {(res.estado === 'pendiente' || esAdmin) && (
+                                                <button 
+                                                    className="btn btn-sm btn-outline-danger" 
+                                                    onClick={() => cancelarReserva(res.id)}
+                                                    title={esAdmin ? "Forzar cancelación por fuerza mayor" : "Cancelar solicitud"}
+                                                >
+                                                    <i className="bi bi-x-circle me-1"></i>
+                                                    {esAdmin && res.estado === 'aprobada' ? 'Forzar Cancelación' : 'Cancelar'}
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
-                                ) : (
-                                    reservasFiltradas.map(res => {
-                                        const estadoInfo = getEstadoInfo(res.estado);
-                                        return (
-                                            <tr key={res.id}>
-                                                <td className="text-muted small">{res.id}</td>
-                                                <td>
-                                                    <strong className="text-primary">{res.espacio}</strong> <br/>
-                                                    <span className="badge bg-secondary">{res.sede}</span>
-                                                </td>
-                                                <td>
-                                                    <i className="bi bi-calendar-event me-1"></i> {res.fecha} <br/>
-                                                    <i className="bi bi-clock me-1"></i> {res.hora}
-                                                </td>
-                                                <td><small className="text-muted">{res.motivo}</small></td>
-                                                <td className="text-center">
-                                                    <span className={`badge py-2 px-3 ${estadoInfo.badge}`}>
-                                                        <i className={`bi ${estadoInfo.icon} me-1`}></i>
-                                                        {estadoInfo.text}
-                                                    </span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <div className="btn-group btn-group-sm" role="group">
-                                                        <button 
-                                                            className="btn btn-outline-info"
-                                                            title="Ver detalles completos"
-                                                        >
-                                                            <i className="bi bi-eye"></i>
-                                                        </button>
-                                                        
-                                                        {(res.estado === 'Aprobada' || res.estado === 'Pendiente') && (
-                                                            <button 
-                                                                className="btn btn-outline-danger"
-                                                                title="Cancelar Reserva (HU21)"
-                                                                onClick={() => handleCancelar(res.id, res.espacio)}
-                                                            >
-                                                                <i className="bi bi-x-circle"></i>
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
