@@ -5,7 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import bootstrap5Plugin from '@fullcalendar/bootstrap5';
-import api from "../../services/api";
+import api from "../../services/api"; // Asegúrate de que la ruta sea correcta
 
 const DashboardAdmin = () => {
     // Estados para Estadísticas
@@ -19,11 +19,28 @@ const DashboardAdmin = () => {
     // Estados para el Calendario de Gestión
     const [espacios, setEspacios] = useState([]);
     const [espacioSeleccionado, setEspacioSeleccionado] = useState(null);
-    const [verTodos, setVerTodos] = useState(false); // <--- NUEVO: Estado para ver todo
+    const [verTodos, setVerTodos] = useState(false);
     const [eventos, setEventos] = useState([]);
+
+    // Estado para controlar la visibilidad del botón (solo Admin)
+    const [esAdmin, setEsAdmin] = useState(false);
 
     useEffect(() => {
         cargarDatos();
+        
+        // --- VALIDACIÓN DE ROL CORREGIDA ---
+        const userStr = localStorage.getItem('user'); // Tu authService usa 'user'
+        if (userStr) {
+            try {
+                const usuario = JSON.parse(userStr);
+                // Tu serializer envía 'rol_slug' con el valor 'admin'
+                if (usuario.rol_slug === 'admin') {
+                    setEsAdmin(true);
+                }
+            } catch (e) {
+                console.error("Error al leer usuario del localStorage", e);
+            }
+        }
     }, []);
 
     const cargarDatos = async () => {
@@ -79,7 +96,6 @@ const DashboardAdmin = () => {
             // Mapear reservas para el calendario
             const eventosMapeados = reservas.map(r => ({
                 id: r.id,
-                // Mostramos nombre del espacio + motivo para tener contexto en la vista global
                 title: `${r.espacio_detalle?.nombre || 'Sala'} - ${r.motivo}`,
                 start: `${r.fecha_reserva}T${r.hora_inicio}`,
                 end: `${r.fecha_reserva}T${r.hora_fin}`,
@@ -97,7 +113,7 @@ const DashboardAdmin = () => {
         }
     };
 
-    // FILTRO VISUAL: Muestra todo si verTodos es true, o filtra por ID
+    // FILTRO VISUAL
     const eventosVisibles = verTodos 
         ? eventos 
         : (espacioSeleccionado ? eventos.filter(ev => Number(ev.extendedProps.espacioId) === Number(espacioSeleccionado.id)) : []);
@@ -116,9 +132,55 @@ const DashboardAdmin = () => {
         }
     };
 
+    // --- FUNCIÓN PARA EXPORTAR CSV ---
+    const handleExportarCSV = async () => {
+        try {
+            const response = await api.get('/reservas/exportar_csv/', {
+                responseType: 'blob', // Importante para manejar archivos binarios
+            });
+            
+            // Crear link temporal para descarga
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Reporte_Reservas_Completo.csv');
+            document.body.appendChild(link);
+            link.click();
+            
+            // Limpieza
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error("Error al exportar", error);
+            if (error.response && error.response.status === 403) {
+                alert("⛔ ACCESO DENEGADO: Solo el usuario Administrador puede descargar este reporte.");
+            } else {
+                alert("Hubo un error al intentar descargar el historial.");
+            }
+        }
+    };
+
     return (
         <div className="container-fluid mt-4">
-            <h1 className="text-danger mb-4"><i className="bi bi-speedometer2 me-2"></i> Dashboard de Gestión</h1>
+            
+            {/* CABECERA: TÍTULO Y BOTÓN DE EXPORTAR */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h1 className="text-danger m-0">
+                    <i className="bi bi-speedometer2 me-2"></i> Dashboard de Gestión
+                </h1>
+                
+                {/* Renderizado condicional del botón */}
+                {esAdmin && (
+                    <button 
+                        className="btn btn-success px-4 py-2 shadow-sm fw-bold" 
+                        onClick={handleExportarCSV}
+                    >
+                        <i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>
+                        Exportar Historial CSV
+                    </button>
+                )}
+            </div>
 
             {/* TARJETAS KPI */}
             <div className="row g-4 mb-5">

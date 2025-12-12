@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.http import JsonResponse
 from .models import Reserva
 from .serializers import ReservaSerializer, ReservaCreateSerializer
+import csv
+from django.http import HttpResponse, HttpResponseForbidden
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
@@ -26,6 +28,46 @@ class ReservaViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(usuario=self.request.user)
     
+    @action(detail=False, methods=['get'])
+    def exportar_csv(self, request):
+        """Generar y descargar CSV (SOLO ADMIN)"""
+        
+        # --- NUEVA VALIDACIÓN DE SEGURIDAD ---
+        # Si el usuario NO es 'admin', denegamos el acceso inmediatamente.
+        if not request.user.rol or request.user.rol.nombre_rol != 'admin':
+             return HttpResponseForbidden("Acceso denegado: Solo el Administrador puede exportar registros.")
+        # -------------------------------------
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="historial_reservas.csv"'
+
+        writer = csv.writer(response)
+        
+        writer.writerow([
+            'ID', 'Solicitante', 'Email', 'Espacio', 'Fecha Reserva', 
+            'Hora Inicio', 'Hora Fin', 'Estado', 'Motivo', 
+            'Observaciones', 'Fecha Creación'
+        ])
+
+        reservas = self.get_queryset().order_by('-fecha_reserva')
+
+        for reserva in reservas:
+            writer.writerow([
+                reserva.id,
+                f"{reserva.usuario.nombre} {reserva.usuario.apellido}",
+                reserva.usuario.email,
+                reserva.espacio.nombre,
+                reserva.fecha_reserva,
+                reserva.hora_inicio,
+                reserva.hora_fin,
+                reserva.get_estado_display(),
+                reserva.motivo,
+                reserva.observaciones or "",
+                reserva.fecha_creacion.strftime("%Y-%m-%d %H:%M")
+            ])
+        
+        return response
+
     @action(detail=True, methods=['post'])
     def aprobar(self, request, pk=None):
         """Aprobar una reserva"""
