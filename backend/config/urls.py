@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import home
 
 # Importar ViewSets
-from usuarios.views import UsuarioViewSet, RolViewSet
+from usuarios.views import CarreraViewSet, UsuarioViewSet, RolViewSet
 from espacios.views import EspacioViewSet
 from elementos.views import ElementoViewSet
 from reservas.views import ReservaViewSet
@@ -17,6 +17,7 @@ router.register(r'roles', RolViewSet)
 router.register(r'espacios', EspacioViewSet)
 router.register(r'elementos', ElementoViewSet)
 router.register(r'reservas', ReservaViewSet)
+router.register(r'carreras', CarreraViewSet)
 
 urlpatterns = [
     # Vista de bienvenida en la raíz

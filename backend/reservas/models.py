@@ -50,6 +50,11 @@ class Reserva(models.Model):
         null=True,
         verbose_name='Observaciones'
     )
+    motivo_rechazo = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Motivo de Rechazo'
+    )
     aprobado_por = models.ForeignKey(
         Usuario,
         on_delete=models.SET_NULL,

@@ -2,6 +2,37 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 
+class Carrera(models.Model):
+    """Modelo para las carreras impartidas en la institución de Temuco"""
+    
+    nombre_carrera = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='Nombre de la Carrera'
+    )
+    codigo = models.TextField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='Código de la Carrera'
+    )
+    area = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Área Académica'
+    )
+    
+    class Meta:
+        verbose_name = 'Carrera'
+        verbose_name_plural = 'Carreras'
+        ordering = ['nombre_carrera']
+    
+    def __str__(self):
+        return self.nombre_carrera
+    
+
+
 
 class Rol(models.Model):
     """Roles del sistema: Administrador, Coordinador, Solicitante, Mantenimiento"""
@@ -134,7 +165,16 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         blank=True,
         verbose_name='Último Acceso'
     )
-    
+    carrera = models.ForeignKey(
+        Carrera,
+        on_delete=models.SET_NULL, 
+        null=True,
+        blank=True,
+        related_name='usuarios',
+        verbose_name='Carrera'
+    )
+
+
     # Campos requeridos por Django
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -154,3 +194,5 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     
     def get_full_name(self):
         return f"{self.nombre} {self.apellido}"
+
+

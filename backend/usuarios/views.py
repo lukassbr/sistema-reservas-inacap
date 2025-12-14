@@ -2,8 +2,14 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import JsonResponse
-from .models import Usuario, Rol
-from .serializers import UsuarioSerializer, UsuarioCreateSerializer, RolSerializer
+from .models import Carrera, Usuario, Rol
+from .serializers import CarreraSerializer, UsuarioSerializer, UsuarioCreateSerializer, RolSerializer
+
+
+class CarreraViewSet(viewsets.ModelViewSet):
+    queryset = Carrera.objects.all()
+    serializer_class = CarreraSerializer
+    permission_classes = [permissions.IsAuthenticated] # Solo administradores pueden crear las carreras
 
 class RolViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Rol.objects.all()
