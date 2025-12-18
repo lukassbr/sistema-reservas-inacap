@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from django.db.models import Count, Sum, Q # Importante para la lógica OR
+from django.db.models import Count, Sum, Q 
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from datetime import datetime
 import io
@@ -41,7 +41,6 @@ class ReservaViewSet(viewsets.ModelViewSet):
         serializer.save(usuario=self.request.user)
 
     # --- NUEVA ACCIÓN: MIS RESERVAS (EXCLUSIVO LISTA PERSONAL) ---
-    # Esto es necesario porque el endpoint principal ahora trae cosas de otros usuarios (las aprobadas)
     @action(detail=False, methods=['get'])
     def mis_reservas(self, request):
         """Devuelve SOLO las reservas del usuario actual para su lista personal"""
@@ -54,11 +53,13 @@ class ReservaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(reservas, many=True)
         return Response(serializer.data)
 
-    # --- ENDPOINT DE ESTADÍSTICAS AVANZADAS ---
+    # --- ENDPOINT DE ESTADÍSTICAS AVANZADAS (CORREGIDO) ---
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
         # 1. Filtros de Fecha
-        now = timezone.now()
+        # CORRECCIÓN: Usamos localdate() para respetar la zona horaria definida en settings (Chile)
+        hoy = timezone.localdate()
+        
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
@@ -66,8 +67,8 @@ class ReservaViewSet(viewsets.ModelViewSet):
             fecha_inicio = datetime.strptime(start_date, '%Y-%m-%d').date()
             fecha_fin = datetime.strptime(end_date, '%Y-%m-%d').date()
         else:
-            fecha_inicio = now.date().replace(day=1)
-            fecha_fin = now.date()
+            fecha_inicio = hoy.replace(day=1)
+            fecha_fin = hoy
 
         # Para estadísticas usamos siempre .all() filtrado, no restringido por usuario
         reservas_filtradas = self.queryset.all().filter(
@@ -103,13 +104,16 @@ class ReservaViewSet(viewsets.ModelViewSet):
         por_dia = reservas_filtradas.values('fecha_reserva').annotate(total=Count('id')).order_by('fecha_reserva')
         data_diario = [{'fecha': item['fecha_reserva'].strftime('%Y-%m-%d'), 'total': item['total']} for item in por_dia]
 
-        # 8. Agenda Hoy
-        hoy = timezone.now().date()
+        # 8. Agenda Hoy & Pendientes
         reservas_hoy = self.queryset.all().filter(fecha_reserva=hoy)
+        
+        # CORRECCIÓN: Contamos TODAS las pendientes históricas, no solo las de "hoy"
+        total_pendientes = self.queryset.all().filter(estado='pendiente').count()
+
         agenda_hoy = {
             'total_hoy': reservas_hoy.count(),
             'eventos': reservas_hoy.filter(estado='aprobada').values('hora_inicio', 'espacio__nombre', 'motivo').order_by('hora_inicio')[:3],
-            'pendientes_accion': reservas_hoy.filter(estado='pendiente').count()
+            'pendientes_accion': total_pendientes  # Ahora muestra el total real pendiente
         }
 
         return Response({
