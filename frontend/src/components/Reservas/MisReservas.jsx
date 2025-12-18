@@ -21,12 +21,23 @@ const MisReservas = () => {
 
     const cargarReservas = async () => {
         try {
-            // CORRECCIÓN IMPORTANTE: Usar endpoint exclusivo para no mezclar con otros
-            const response = await api.get('/reservas/mis_reservas/');
+            setLoading(true); // Es buena práctica asegurar que empiece cargando
+            
+            // CORRECCIÓN: Selección inteligente del endpoint
+            // Si es Admin, vamos a la raíz ('/reservas/') que devuelve TODO (gracias al get_queryset del backend)
+            // Si es Usuario, vamos a ('/reservas/mis_reservas/') que devuelve solo las suyas
+            const endpoint = esAdmin ? '/reservas/' : '/reservas/mis_reservas/';
+            
+            console.log(`Cargando reservas desde: ${endpoint} (Modo Admin: ${esAdmin})`); // Debug
+            
+            const response = await api.get(endpoint);
+            
+            // Ordenamos por fecha (más reciente primero)
             const ordenadas = response.data.sort((a, b) => new Date(b.fecha_reserva) - new Date(a.fecha_reserva));
             setReservas(ordenadas);
         } catch (error) {
-            console.error("Error cargando reservas", error);
+            console.error("Error cargando reservas:", error);
+            // Opcional: Mostrar un toast o alerta visual de error
         } finally {
             setLoading(false);
         }
