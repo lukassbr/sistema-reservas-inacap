@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from django.http import JsonResponse
 from .models import Carrera, Usuario, Rol
 from .serializers import CarreraSerializer, UsuarioSerializer, UsuarioCreateSerializer, RolSerializer
+from .permissions import IsAdminUserCustom, IsAdminOrReadOnly
 
 
 class CarreraViewSet(viewsets.ModelViewSet):
     queryset = Carrera.objects.all()
     serializer_class = CarreraSerializer
-    permission_classes = [permissions.IsAuthenticated] # Solo administradores pueden crear las carreras
+    permission_classes = [IsAdminOrReadOnly] # Solo administradores pueden crear las carreras
 
 class RolViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Rol.objects.all()
@@ -18,7 +19,7 @@ class RolViewSet(viewsets.ReadOnlyModelViewSet):
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly] # Solo administradores pueden gestionar usuarios
     
     def get_serializer_class(self):
         if self.action == 'create':

@@ -125,7 +125,7 @@ const MisReservas = () => {
                                         </td>
                                         <td className="text-center">
                                             <div className="d-flex justify-content-center gap-2">
-                                                {/* BOTÓN VER DETALLE (NUEVO) */}
+                                                {/* BOTÓN VER DETALLE */}
                                                 <button 
                                                     className="btn btn-sm btn-info text-white" 
                                                     onClick={() => verDetalle(res)}
@@ -154,7 +154,7 @@ const MisReservas = () => {
                 </div>
             </div>
 
-            {/* --- MODAL DE DETALLE (NUEVO) --- */}
+            {/* --- MODAL DE DETALLE --- */}
             {showModal && reservaSeleccionada && (
                 <div className="modal d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050}}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -172,6 +172,25 @@ const MisReservas = () => {
                             
                             <div className="modal-body p-4">
                                 <div className="row g-4">
+                                    
+                                    {/* --- NUEVO BLOQUE: ALERTA DE RECHAZO --- */}
+                                    {/* Si el estado es rechazada, mostramos la caja roja con el motivo */}
+                                    {reservaSeleccionada.estado === 'rechazada' && (
+                                        <div className="col-12">
+                                            <div className="alert alert-danger border-danger border-2 bg-danger bg-opacity-10">
+                                                <h5 className="text-danger fw-bold mb-2">
+                                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                                    Solicitud Rechazada
+                                                </h5>
+                                                <p className="mb-0 text-dark">
+                                                    <strong>Motivo: </strong> 
+                                                    {/* Accedemos al campo que ya viene del serializer */}
+                                                    {reservaSeleccionada.motivo_rechazo || "El coordinador no especificó un motivo."}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* INFO PRINCIPAL */}
                                     <div className="col-md-6">
                                         <h6 className="text-secondary fw-bold small text-uppercase">Información del Espacio</h6>
@@ -201,7 +220,7 @@ const MisReservas = () => {
                                         </div>
                                     </div>
 
-                                    {/* MOTIVO */}
+                                    {/* MOTIVO DE LA RESERVA (SOLICITANTE) */}
                                     <div className="col-12">
                                         <h6 className="text-secondary fw-bold small text-uppercase">Motivo de la Actividad</h6>
                                         <div className="p-3 border rounded bg-white fst-italic text-muted">
@@ -209,17 +228,22 @@ const MisReservas = () => {
                                         </div>
                                     </div>
 
-                                    {/* ELEMENTOS / INSUMOS */}
+                                    {/* ELEMENTOS / INSUMOS - CORREGIDO */}
                                     <div className="col-12">
                                         <h6 className="text-secondary fw-bold small text-uppercase border-bottom pb-2">
                                             Insumos Solicitados
                                         </h6>
-                                        {reservaSeleccionada.elementos_detalle && reservaSeleccionada.elementos_detalle.length > 0 ? (
+                                        {/* CORRECCIÓN: Usamos 'elementos' porque así se llama en tu ReservaSerializer */}
+                                        {reservaSeleccionada.elementos && reservaSeleccionada.elementos.length > 0 ? (
                                             <div className="row g-2">
-                                                {reservaSeleccionada.elementos_detalle.map((item, idx) => (
+                                                {reservaSeleccionada.elementos.map((item, idx) => (
                                                     <div key={idx} className="col-md-6">
                                                         <div className="d-flex justify-content-between align-items-center p-2 border rounded">
-                                                            <span><i className="bi bi-box-seam me-2 text-primary"></i>{item.elemento_nombre}</span>
+                                                            {/* CORRECCIÓN: item.elemento_detalle viene del ReservaElementoSerializer */}
+                                                            <span>
+                                                                <i className="bi bi-box-seam me-2 text-primary"></i>
+                                                                {item.elemento_detalle?.nombre || "Elemento"}
+                                                            </span>
                                                             <span className="badge bg-secondary">x{item.cantidad_solicitada}</span>
                                                         </div>
                                                     </div>
@@ -230,7 +254,6 @@ const MisReservas = () => {
                                         )}
                                     </div>
 
-                                    {/* USUARIO (Solo Admin lo ve necesario, pero útil para todos confirmar sus datos) */}
                                     <div className="col-12 text-end text-muted small mt-2">
                                         Solicitado por: <strong>{reservaSeleccionada.usuario_detalle?.nombre}</strong> ({reservaSeleccionada.usuario_detalle?.email})
                                     </div>

@@ -21,7 +21,9 @@ class ReservaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reserva
         fields = '__all__'
-        read_only_fields = ('fecha_creacion', 'fecha_aprobacion', 'aprobado_por')
+        # AJUSTE DE SEGURIDAD: Agregamos 'motivo_rechazo' a solo lectura
+        # para que nadie pueda manipularlo desde el frontend.
+        read_only_fields = ('fecha_creacion', 'fecha_aprobacion', 'aprobado_por', 'motivo_rechazo')
 
 class ReservaCreateSerializer(serializers.ModelSerializer):
     elementos = serializers.ListField(
@@ -52,9 +54,10 @@ class ReservaCreateSerializer(serializers.ModelSerializer):
         
         # Crear elementos asociados
         for elemento_data in elementos_data:
+            # Asegúrate que el frontend envíe 'elemento_id' y 'cantidad'
             ReservaElemento.objects.create(
                 reserva=reserva,
-                elemento_id=elemento_data['elemento_id'],
+                elemento_id=elemento_data.get('elemento_id') or elemento_data.get('id'), # Pequeña protección por si envían 'id'
                 cantidad_solicitada=elemento_data['cantidad']
             )
         

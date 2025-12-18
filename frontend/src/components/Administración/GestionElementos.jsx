@@ -1,224 +1,234 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
+import React, { useState, useEffect } from "react";
+import api from "../../services/api";
+import authService from "../../services/authService"; 
+import Swal from 'sweetalert2';
 
 const GestionElementos = () => {
     const [elementos, setElementos] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    
-    // Estado del formulario
-    const [formData, setFormData] = useState({
+    const [modoEdicion, setModoEdicion] = useState(false);
+    const [esAdmin, setEsAdmin] = useState(false); 
+
+    // CORRECCIÓN: Nombres de campos deben coincidir con models.py
+    const [elementoActual, setElementoActual] = useState({
         id: null,
-        nombre: '',
-        categoria: 'tecnologia', // Valor por defecto
-        stock_total: 1,
-        stock_disponible: 1,
-        unidad_medida: 'unidad',
-        estado: 'disponible'
+        nombre: "",
+        categoria: "tecnologia", // Antes 'tipo'
+        stock_total: "",         // Antes 'cantidad'
+        stock_disponible: "",    // Nuevo campo requerido
+        estado: "disponible"
     });
 
     useEffect(() => {
         cargarElementos();
+        const user = authService.getCurrentUser();
+        if (user && user.rol_slug === 'admin') {
+            setEsAdmin(true);
+        }
     }, []);
 
     const cargarElementos = async () => {
         try {
-            const response = await api.get('/elementos/');
-            setElementos(response.data);
+            const res = await api.get("/elementos/");
+            setElementos(res.data);
         } catch (error) {
             console.error("Error al cargar elementos", error);
-        } finally {
-            setLoading(false);
         }
     };
 
-    const handleGuardar = async (e) => {
+    const handleInputChange = (e) => {
+        setElementoActual({ ...elementoActual, [e.target.name]: e.target.value });
+    };
+
+    const guardarElemento = async (e) => {
         e.preventDefault();
         try {
-            // Validar que stock disponible no sea mayor al total
-            if (parseInt(formData.stock_disponible) > parseInt(formData.stock_total)) {
-                alert("El stock disponible no puede ser mayor al total.");
-                return;
+            // LÓGICA DE NEGOCIO:
+            // Al crear, asumimos que stock_disponible = stock_total.
+            // Al editar, hay que tener cuidado. En este caso simple, enviamos el mismo valor si el usuario no tiene control fino.
+            // Para el MVP, igualaremos disponible al total si es nuevo.
+            
+            const payload = { ...elementoActual };
+            
+            if (!modoEdicion) {
+                // Si es nuevo, el disponible es igual al total
+                payload.stock_disponible = payload.stock_total;
+            } else {
+                // Si editamos, por seguridad para el MVP, si no controlamos préstamos aquí,
+                // mantenemos el disponible actual o lo actualizamos proporcionalmente.
+                // Para evitar errores 400 por constraints, aseguramos que disponible <= total
+                if (parseInt(payload.stock_disponible) > parseInt(payload.stock_total)) {
+                     payload.stock_disponible = payload.stock_total;
+                }
             }
 
-            if (formData.id) {
-                // Editar
-                await api.put(`/elementos/${formData.id}/`, formData);
-                alert("Elemento actualizado correctamente ✅");
+            if (modoEdicion) {
+                await api.put(`/elementos/${elementoActual.id}/`, payload);
+                Swal.fire('Éxito', 'Elemento actualizado', 'success');
             } else {
-                // Crear
-                await api.post('/elementos/', formData);
-                alert("Elemento creado correctamente ✅");
+                await api.post("/elementos/", payload);
+                Swal.fire('Éxito', 'Elemento agregado', 'success');
             }
+            limpiarFormulario();
             cargarElementos();
-            setShowModal(false);
         } catch (error) {
-            console.error("Error guardando:", error);
-            alert("Error al guardar elemento. Revisa los datos.");
+            console.error(error);
+            Swal.fire('Error', 'No se pudo guardar. Revisa los datos.', 'error');
         }
     };
 
-    const handleEliminar = async (id) => {
-        if (window.confirm("¿Seguro que deseas eliminar este elemento?")) {
+    const eliminarElemento = async (id) => {
+        const result = await Swal.fire({
+            title: '¿Estás seguro?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Eliminar'
+        });
+
+        if (result.isConfirmed) {
             try {
                 await api.delete(`/elementos/${id}/`);
+                Swal.fire('Eliminado', 'Elemento eliminado.', 'success');
                 cargarElementos();
             } catch (error) {
-                alert("No se pudo eliminar.");
+                Swal.fire('Error', 'No se puede eliminar.', 'error');
             }
         }
     };
 
-    const abrirModal = (elemento = null) => {
-        if (elemento) {
-            setFormData(elemento);
-        } else {
-            setFormData({
-                id: null,
-                nombre: '',
-                categoria: 'tecnologia',
-                stock_total: 10,
-                stock_disponible: 10, // Por defecto igual al total
-                unidad_medida: 'unidad',
-                estado: 'disponible'
-            });
-        }
-        setShowModal(true);
+    const prepararEdicion = (elem) => {
+        setModoEdicion(true);
+        // Mapeamos los datos que vienen del back al formulario
+        setElementoActual({
+            id: elem.id,
+            nombre: elem.nombre,
+            categoria: elem.categoria,      // Coincide con backend
+            stock_total: elem.stock_total,  // Coincide con backend
+            stock_disponible: elem.stock_disponible, // Necesario para no perder el dato al guardar
+            estado: elem.estado || "disponible"
+        });
     };
 
-    if (loading) return <div className="p-5 text-center">Cargando inventario...</div>;
+    const limpiarFormulario = () => {
+        setModoEdicion(false);
+        setElementoActual({ id: null, nombre: "", categoria: "tecnologia", stock_total: "", stock_disponible: "", estado: "disponible" });
+    };
 
     return (
-        <div className="container mt-5">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h1 className="text-danger">Gestión de Elementos</h1>
-                <button className="btn btn-danger" onClick={() => abrirModal(null)}>
-                    <i className="bi bi-plus-lg me-2"></i> Nuevo Elemento
-                </button>
-            </div>
-
-            <div className="card shadow border-0">
-                <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                        <thead className="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th>Stock (Disp / Total)</th>
-                                <th>Estado</th>
-                                <th className="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {elementos.map(el => (
-                                <tr key={el.id}>
-                                    <td className="fw-bold">{el.nombre}</td>
-                                    <td>
-                                        <span className="badge bg-light text-dark border">
-                                            {el.categoria}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span className={el.stock_disponible === 0 ? "text-danger fw-bold" : "text-success"}>
-                                            {el.stock_disponible}
-                                        </span> 
-                                        <span className="text-muted mx-1">/</span> 
-                                        {el.stock_total} {el.unidad_medida}
-                                    </td>
-                                    <td>
-                                        {el.estado === 'disponible' 
-                                            ? <span className="badge bg-success">Disponible</span>
-                                            : <span className="badge bg-warning text-dark">{el.estado}</span>
-                                        }
-                                    </td>
-                                    <td className="text-center">
-                                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => abrirModal(el)}>
-                                            <i className="bi bi-pencil"></i>
-                                        </button>
-                                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleEliminar(el.id)}>
-                                            <i className="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* MODAL */}
-            {showModal && (
-                <div className="modal d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-                    <div className="modal-dialog">
-                        <div className="modal-content">
-                            <div className="modal-header bg-danger text-white">
-                                <h5 className="modal-title">{formData.id ? 'Editar' : 'Crear'} Elemento</h5>
-                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowModal(false)}></button>
+        <div className="container mt-4 fade-in">
+            <h2 className="mb-4 text-danger fw-bold"><i className="bi bi-box-seam-fill me-2"></i>Inventario de Elementos</h2>
+            
+            <div className="row">
+                {/* FORMULARIO (SOLO ADMIN) */}
+                {esAdmin && (
+                    <div className="col-md-4 mb-4">
+                        <div className="card shadow-sm border-0">
+                            <div className="card-header bg-danger text-white fw-bold">
+                                {modoEdicion ? 'Editar Elemento' : 'Nuevo Elemento'}
                             </div>
-                            <form onSubmit={handleGuardar}>
-                                <div className="modal-body">
+                            <div className="card-body">
+                                <form onSubmit={guardarElemento}>
                                     <div className="mb-3">
-                                        <label>Nombre del Elemento</label>
-                                        <input type="text" className="form-control" required
-                                            value={formData.nombre}
-                                            onChange={e => setFormData({...formData, nombre: e.target.value})}
-                                        />
+                                        <label className="form-label">Nombre</label>
+                                        <input type="text" className="form-control" name="nombre" 
+                                            value={elementoActual.nombre} onChange={handleInputChange} required />
                                     </div>
-                                    <div className="row">
-                                        <div className="col-md-6 mb-3">
-                                            <label>Categoría</label>
-                                            <select className="form-select" value={formData.categoria}
-                                                onChange={e => setFormData({...formData, categoria: e.target.value})}>
-                                                <option value="mobiliario">Mobiliario</option>
-                                                <option value="tecnologia">Tecnología</option>
-                                                <option value="audio">Audio</option>
-                                                <option value="decoracion">Decoración</option>
-                                                <option value="otro">Otro</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label>Unidad de Medida</label>
-                                            <input type="text" className="form-control"
-                                                value={formData.unidad_medida}
-                                                onChange={e => setFormData({...formData, unidad_medida: e.target.value})}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-md-6 mb-3">
-                                            <label>Stock Total</label>
-                                            <input type="number" className="form-control" min="0" required
-                                                value={formData.stock_total}
-                                                onChange={e => setFormData({...formData, stock_total: e.target.value})}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label>Stock Disponible</label>
-                                            <input type="number" className="form-control" min="0" required
-                                                value={formData.stock_disponible}
-                                                onChange={e => setFormData({...formData, stock_disponible: e.target.value})}
-                                            />
-                                        </div>
-                                    </div>
+                                    
+                                    {/* CORRECCIÓN: name="categoria" y valores correctos */}
                                     <div className="mb-3">
-                                        <label>Estado</label>
-                                        <select className="form-select" value={formData.estado}
-                                            onChange={e => setFormData({...formData, estado: e.target.value})}>
-                                            <option value="disponible">Disponible</option>
-                                            <option value="mantenimiento">En Mantenimiento</option>
-                                            <option value="dado_baja">Dado de Baja</option>
+                                        <label className="form-label">Categoría</label>
+                                        <select className="form-select" name="categoria" value={elementoActual.categoria} onChange={handleInputChange}>
+                                            <option value="tecnologia">Tecnología</option>
+                                            <option value="mobiliario">Mobiliario</option>
+                                            <option value="audio">Audio y Sonido</option>
+                                            <option value="iluminacion">Iluminación</option>
+                                            <option value="decoracion">Decoración</option>
+                                            <option value="otro">Otro</option>
                                         </select>
                                     </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                                    <button type="submit" className="btn btn-success">Guardar</button>
-                                </div>
-                            </form>
+
+                                    {/* CORRECCIÓN: name="stock_total" */}
+                                    <div className="mb-3">
+                                        <label className="form-label">Stock Total</label>
+                                        <input type="number" className="form-control" name="stock_total" 
+                                            value={elementoActual.stock_total} onChange={handleInputChange} required min="0" />
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold">Estado</label>
+                                        <select className="form-select" name="estado" value={elementoActual.estado} onChange={handleInputChange}>
+                                            <option value="disponible">🟢 Disponible</option>
+                                            <option value="mantenimiento">🟠 En Mantenimiento</option>
+                                            <option value="dado_baja">🔴 Dado de Baja</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="d-grid gap-2">
+                                        <button type="submit" className={`btn ${modoEdicion ? 'btn-warning' : 'btn-success'}`}>
+                                            {modoEdicion ? 'Actualizar' : 'Agregar'}
+                                        </button>
+                                        {modoEdicion && (
+                                            <button type="button" className="btn btn-secondary" onClick={limpiarFormulario}>
+                                                Cancelar
+                                            </button>
+                                        )}
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TABLA */}
+                <div className={esAdmin ? "col-md-8" : "col-md-12"}>
+                    <div className="card shadow-sm border-0">
+                        <div className="card-body">
+                            <div className="table-responsive">
+                                <table className="table table-hover align-middle">
+                                    <thead className="table-light">
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Categoría</th>
+                                            <th>Stock (Disp/Total)</th>
+                                            <th>Estado</th>
+                                            {esAdmin && <th>Acciones</th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {elementos.map(el => (
+                                            <tr key={el.id}>
+                                                <td className="fw-bold">{el.nombre}</td>
+                                                <td><span className="badge bg-light text-dark border">{el.categoria_display || el.categoria}</span></td>
+                                                <td className="fw-bold text-primary">
+                                                    {el.stock_disponible} / {el.stock_total}
+                                                </td>
+                                                <td>
+                                                    <span className={`badge ${
+                                                        el.estado === 'disponible' ? 'bg-success' : 
+                                                        (el.estado === 'dado_baja' ? 'bg-danger' : 'bg-warning text-dark')
+                                                    }`}>
+                                                        {el.estado_display || el.estado}
+                                                    </span>
+                                                </td>
+                                                {esAdmin && (
+                                                    <td>
+                                                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => prepararEdicion(el)}>
+                                                            <i className="bi bi-pencil-fill"></i>
+                                                        </button>
+                                                        <button className="btn btn-sm btn-outline-danger" onClick={() => eliminarElemento(el.id)}>
+                                                            <i className="bi bi-trash-fill"></i>
+                                                        </button>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
