@@ -21,8 +21,8 @@ const MisReservas = () => {
 
     const cargarReservas = async () => {
         try {
-            const response = await api.get('/reservas/');
-            // Ordenar por fecha (más reciente primero)
+            // CORRECCIÓN IMPORTANTE: Usar endpoint exclusivo para no mezclar con otros
+            const response = await api.get('/reservas/mis_reservas/');
             const ordenadas = response.data.sort((a, b) => new Date(b.fecha_reserva) - new Date(a.fecha_reserva));
             setReservas(ordenadas);
         } catch (error) {
@@ -174,7 +174,6 @@ const MisReservas = () => {
                                 <div className="row g-4">
                                     
                                     {/* --- NUEVO BLOQUE: ALERTA DE RECHAZO --- */}
-                                    {/* Si el estado es rechazada, mostramos la caja roja con el motivo */}
                                     {reservaSeleccionada.estado === 'rechazada' && (
                                         <div className="col-12">
                                             <div className="alert alert-danger border-danger border-2 bg-danger bg-opacity-10">
@@ -184,7 +183,6 @@ const MisReservas = () => {
                                                 </h5>
                                                 <p className="mb-0 text-dark">
                                                     <strong>Motivo: </strong> 
-                                                    {/* Accedemos al campo que ya viene del serializer */}
                                                     {reservaSeleccionada.motivo_rechazo || "El coordinador no especificó un motivo."}
                                                 </p>
                                             </div>
@@ -228,18 +226,16 @@ const MisReservas = () => {
                                         </div>
                                     </div>
 
-                                    {/* ELEMENTOS / INSUMOS - CORREGIDO */}
+                                    {/* ELEMENTOS / INSUMOS */}
                                     <div className="col-12">
                                         <h6 className="text-secondary fw-bold small text-uppercase border-bottom pb-2">
                                             Insumos Solicitados
                                         </h6>
-                                        {/* CORRECCIÓN: Usamos 'elementos' porque así se llama en tu ReservaSerializer */}
                                         {reservaSeleccionada.elementos && reservaSeleccionada.elementos.length > 0 ? (
                                             <div className="row g-2">
                                                 {reservaSeleccionada.elementos.map((item, idx) => (
                                                     <div key={idx} className="col-md-6">
                                                         <div className="d-flex justify-content-between align-items-center p-2 border rounded">
-                                                            {/* CORRECCIÓN: item.elemento_detalle viene del ReservaElementoSerializer */}
                                                             <span>
                                                                 <i className="bi bi-box-seam me-2 text-primary"></i>
                                                                 {item.elemento_detalle?.nombre || "Elemento"}
